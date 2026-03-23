@@ -24,6 +24,34 @@ docker pull yujjio/seizure_transformer
 ```
 
 ## Environment
+
+### Option 1: Using pyproject.toml with uv (Recommended)
+We provide a unified `pyproject.toml` configuration that manages all dependencies with optional extras for different use cases:
+
+```bash
+# Install base dependencies only (shared packages)
+uv pip install -e .
+
+# Install for seizure detection (time-step level)
+uv pip install -e ".[time_step]"
+
+# Install for window-level tasks (sleep stage, abnormal detection)
+uv pip install -e ".[window]"
+
+# Install everything (all extras)
+uv pip install -e ".[all]"
+
+# Install with development tools
+uv pip install -e ".[dev]"
+```
+
+**Available extras:**
+- `time_step` - Dependencies for seizure detection experiments
+- `window` - Dependencies for sleep stage classification and abnormal detection
+- `all` - Both time_step and window dependencies
+- `dev` - Development tools (mypy, pytest, coverage)
+
+### Option 2: Using requirements files
 For the seizure detection experiment, we use `Python=3.10.16`. Use the following command to set the environment:
 ```bash
 conda create -n seizure python=3.10.16
@@ -36,6 +64,8 @@ conda create -n window python=3.9.21
 conda activate window
 pip install -r ./requirements_window.txt
 ```
+
+> **Note:** The requirements files now reference `requirements_shared.txt` which contains common dependencies to avoid duplication.
 
 ## Dataset
 
@@ -72,10 +102,24 @@ pip install -r ./requirements_window.txt
 
 ## Experiments
 ### Seizure Detection
+
+See detailed documentation in [`time_step_level/README.md`](time_step_level/README.md) for complete instructions including:
+- Dataset preparation (legacy and memory-efficient chunked formats)
+- Training with various configurations
+- Evaluation and metrics
+- Memory optimization strategies
+- Troubleshooting guide
+
+**Quick Start:**
+
 Training:
 ```bash
 cd ./time_step_level
+# Option 1: Legacy format (high RAM usage)
 python3 train_sd.py
+
+# Option 2: Chunked format (recommended - low RAM usage)
+python3 train_sd.py --use_chunked --chunk_cache_size 2
 ```
 Evaluation:
 ```bash

@@ -1,67 +1,20 @@
+# Shared dependencies
+-r requirements_shared.txt
+
+# Time-step level specific dependencies
 blessed
 Bottleneck
-Brotli
-certifi
-charset-normalizer
-contourpy
-cycler
-decorator
 # Editable install with no version control (epilepsy2bids==0.0.7)
 epilepsy2bids
-filelock
-fonttools
-gmpy2
 gpustat
-greenlet
-h5py
-idna
-Jinja2
-joblib
-kiwisolver
-llvmlite
-lxml
-MarkupSafe
-matplotlib
-mkl-service
-mkl_fft
-mkl_random
-mpmath
 nest-asyncio
-networkx
-numba
-numpy
 nvidia-ml-py
 obspy
-packaging
-pandas
-pillow
-psutil
 pyarrow
-pyEDFlib
-pyparsing
-PySocks
-python-dateutil
-pytz
-requests
 resampy
-scikit-learn
-scipy
 seisbench
-six
-SQLAlchemy
-sympy
-termcolor
-threadpoolctl
 # Editable install with no version control (timescoring==0.0.6)
 timescoring
 # PyTorch CPU-only versions (install with: --index-url https://download.pytorch.org/whl/cpu)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch
-torchaudio
-torchvision
-tqdm
-triton
-typing_extensions
-tzdata
-urllib3
 wcwidth
