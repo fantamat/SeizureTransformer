@@ -1,3 +1,8 @@
 
 /wu_2025/src/wu_2025/__pycache__
 wu_2025/src/wu_2025/model.pth
+
+
+time_step_level/data/dataset/*.npy
+
+__pycache__/
