@@ -51,9 +51,8 @@ class SeizureDataset(nn.Module):
     def preprocess_clip(self, eeg_clip):
         bandpass_filtered_signal = self.butter_bandpass_filter(eeg_clip, order=3)
         filtered_1_signal = lfilter(self.notch_1_b, self.notch_1_a, bandpass_filtered_signal)
-        filtered_60_signal = lfilter(self.notch_60_b, self.notch_60_a, filtered_1_signal)  
-        eeg_clip = filtered_60_signal
-        return eeg_clip
+        filtered_60_signal = lfilter(self.notch_60_b, self.notch_60_a, filtered_1_signal)
+        return filtered_60_signal
 
     def __getitem__(self, idx):
         eeg_clip = self.data[:, self.window_idx[idx]:self.window_idx[idx]+self.window_size]

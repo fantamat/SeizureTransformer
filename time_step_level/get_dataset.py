@@ -9,11 +9,18 @@ from scipy.signal import resample
 from epilepsy2bids.annotations import Annotations
 from epilepsy2bids.eeg import Eeg
 
+
+
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Get ETHZ dataset')
     parser.add_argument('--window_size', type=int, default=15360, help='Window size')
     parser.add_argument('--alpha', type=float, default=0.7, help='Alpha value for training data')
     parser.add_argument('--beta', type=float, default=1.0, help='Beta value for training data')
+    parser.add_argument('--data-siena', type=str, help='Use Siena dataset')
+    parser.add_argument('--data-mit', type=str, help='Use MIT dataset')
+    parser.add_argument('--data-ethz', type=str, help='Use ETHZ dataset')
     args = parser.parse_args()
     return args
 
@@ -27,7 +34,10 @@ def get_siena(window_size, args):
     valid_window_li = []
     valid_label_li = []
 
-    file_list, label_list = get_file('./data/BIDS_Siena')
+    data_path = './data/BIDS_Siena'
+    if args.data_siena:
+        data_path = args.data_siena
+    file_list, label_list = get_file(data_path)
 
     progress = tqdm(file_list)
     for edf_path in progress:
@@ -111,7 +121,10 @@ def get_mit(window_size, args):
     valid_window_li = []
     valid_label_li = []
 
-    file_list, label_list = get_file('./data/BIDS_CHB-MIT')
+    data_path = './data/BIDS_CHB-MIT'
+    if args.data_mit:
+        data_path = args.data_mit
+    file_list, label_list = get_file(data_path)
 
     progress = tqdm(file_list)
     for edf_path in progress:
@@ -191,7 +204,13 @@ def get_ethz(window_size, args):
     valid_window_li = []
     valid_label_li = []
 
-    file_list, label_list = get_file('./data/v2.0.3/edf/train')
+
+    data_path = './data/v2.0.3/edf/train'
+    if args.data_ethz:
+        data_path = args.data_ethz
+
+    file_list, label_list = get_file(data_path)
+
     progress = tqdm(range(len(file_list)))
     for i in progress:
         data_file, label_file = file_list[i], label_list[i]
