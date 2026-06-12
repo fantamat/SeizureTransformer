@@ -1,4 +1,6 @@
-time_step_level/data/dataset/*.npy
+
+time_step_level/data/
+seizuretransformer.egg-info/
 
 __pycache__/
 
