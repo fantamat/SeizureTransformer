@@ -12,7 +12,7 @@ from timescoring.annotations import Annotation
 from service.handle_data import *
 from service.post_process import *
 from service.result import Result, get_testingdataloader
-from train_sd import ParseArgs
+from train_sd import parse_args
 
 
 def eval_TestSet(args, device):
@@ -82,7 +82,7 @@ def eval_TestSet(args, device):
 
 
 if __name__ == '__main__':
-    args = ParseArgs()
+    args = parse_args()
     restore_path = f'./ckp/full_18_beta{args.beta}_alpha{args.alpha}_window{args.window_size}_dim{args.dim_feedforward}_layer{args.num_layers}_num_head{args.num_heads}_f1.pth'
     model = SeizureTransformer(
         in_channels=args.num_channel,

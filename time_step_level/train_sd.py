@@ -6,15 +6,17 @@ import torch.nn as nn
 import argparse
 from tqdm import tqdm
 import os
+from pathlib import Path
 
 from timescoring import scoring
 from timescoring.annotations import Annotation
 from service.handle_data import *
 from service.post_process import *
 from service.result import Result, get_testingdataloader
+from time_step_level.utils.chunked_dataset import ChunkedDataset, create_dataloader
 
 
-def ParseArgs():
+def parse_args():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--window_size', type=int, default=15360,
@@ -39,6 +41,17 @@ def ParseArgs():
     parser.add_argument('--gpu', type=int, default=0, help='gpu')
     parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple gpus', default=True)
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
+    
+    # Dataset format options
+    parser.add_argument('--use_chunked', action='store_true', default=False,
+                        help='Use chunked dataset format (reduces RAM usage)')
+    parser.add_argument('--chunk_cache_size', type=int, default=2,
+                        help='Number of chunks to keep in cache')
+    parser.add_argument('--batch_size', type=int, default=86,
+                        help='Batch size for training')
+    
+    # Dataset location
+    parser.add_argument('--data-dir', type=str, default='./data/dataset/', help='Directory for dataset files')
 
     args = parser.parse_args()
     args.task_name = 'classification'
@@ -136,14 +149,57 @@ def main():
         print('fpRate', avg_event_score.fpRate)
 
         return avg_event_score.f1
-    args = ParseArgs()
-    data = np.load(f'./data/dataset/full_train_data_{args.alpha}_{args.beta}_{args.window_size}.npy')
-    label = np.load(f'./data/dataset/full_train_label_{args.alpha}_{args.beta}_{args.window_size}.npy')
     
-    print('data', data.shape)
-    print('label', label.shape)
+    args = parse_args()
+    
+    # Determine dataset format and load accordingly
+    if args.use_chunked:
+        # Use chunked dataset format
+        metadata_path = Path(f'{args.data_dir}/chunks/full_train_{args.alpha}_{args.beta}_{args.window_size}_metadata.json')
+        
+        if not metadata_path.exists():
+            raise FileNotFoundError(
+                f"Chunked dataset not found: {metadata_path}\n"
+                f"Please run get_dataset_chunked.py first to create the chunked dataset."
+            )
+        
+        print(f"Loading chunked dataset from: {metadata_path}")
+        dataloader = create_dataloader(
+            str(metadata_path),
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=4,
+            cache_size=args.chunk_cache_size
+        )
+        
+        # Get dataset info
+        dataset = ChunkedDataset(str(metadata_path), cache_size=args.chunk_cache_size)
+        dataset_info = dataset.get_info()
+        print(f"Dataset: {dataset_info['name']}")
+        print(f"Total samples: {dataset_info['total_samples']}")
+        print(f"Chunks: {dataset_info['num_chunks']}")
+        
+    else:
+        # Use legacy single-file format
+        data_path = f'{args.data_dir}/full_train_data_{args.alpha}_{args.beta}_{args.window_size}.npy'
+        label_path = f'{args.data_dir}/full_train_label_{args.alpha}_{args.beta}_{args.window_size}.npy'
+        
+        if not Path(data_path).exists():
+            raise FileNotFoundError(
+                f"Legacy dataset not found: {data_path}\n"
+                f"Either run get_dataset.py to create it, or use --use_chunked flag "
+                f"with get_dataset_chunked.py"
+            )
+        
+        print(f"Loading legacy dataset from: {data_path}")
+        data = np.load(data_path)
+        label = np.load(label_path)
+        
+        print('data', data.shape)
+        print('label', label.shape)
 
-    dataloader = get_trainingloader(data, label, batch_size=86)
+        dataloader = get_trainingloader(data, label, batch_size=args.batch_size)
+    
     model = SeizureTransformer(
         in_channels=args.num_channel,
         in_samples=args.window_size,
@@ -165,7 +221,13 @@ def main():
         model.train()
         progress = tqdm(dataloader, total=len(dataloader))
 
-        for X, y_detect in progress:
+        for batch_data in progress:
+            # Handle different batch formats
+            if isinstance(batch_data, tuple) or isinstance(batch_data, list):
+                X, y_detect = batch_data
+            else:
+                X, y_detect = batch_data['X'], batch_data['y_detect']
+            
             # print('X', X.shape)
             # print('y_detect', y_detect.shape)
             X = X.to(f'cuda:{args.device_ids[0]}')
@@ -189,7 +251,7 @@ def main():
             best_f1 = event_f1
             print('store best model with f1: ', best_f1)
             # store
-            model_path = f'./ckp/'
+            model_path = f'{args.data_dir}/ckp/'
             if not os.path.exists(model_path):
                 os.makedirs(model_path)
             # model_name = model_path + f'0331_seizuretransformer_fully_res_elu_seq15360_head4_f512_layer8_ff2048_{args.lr}_{args.weight_decay}_{args.epochs}.pth'
