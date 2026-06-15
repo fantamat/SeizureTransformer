@@ -7,7 +7,7 @@ as it's processed.
 """
 
 from service.handle_data import get_file, get_data, get_dataloader, get_data_18
-from time_step_level.utils.chunked_dataset import ChunkedDatasetWriter, _get_process_rss_mb
+from utils.chunked_dataset import ChunkedDatasetWriter, _get_process_rss_mb
 from tqdm import tqdm
 import argparse
 import logging

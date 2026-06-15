@@ -149,7 +149,6 @@ window = [
     "mne",
     "mne-bids",
     "mne-connectivity",
-    "moabb",
     "msgpack",
     "multidict",
     "mypy",
@@ -240,21 +239,23 @@ window = [
     "zipp",
 ]
 
-all = [
-    "seizuretransformer[time_step,window]",
-]
-
 dev = [
     "mypy",
     "pytest",
     "coverage",
 ]
 
-[tool.setuptools]
-packages = []  # This is primarily a research codebase with separate modules
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["time_step_level*", "window_level*"]
+namespaces = true
 
-[tool.setuptools.package-data]
-"*" = ["*.txt", "*.md"]
 
 [tool.uv]
 extra-index-url = ["https://download.pytorch.org/whl/cpu"]
+
+[tool.uv.extra-build-dependencies]
+torch-lfilter = ["torch"]
+
+[tool.setuptools]
+py-modules = ["time_step_level", "window_level"]

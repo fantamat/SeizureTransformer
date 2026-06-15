@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+
+import glob
 import argparse
 from tqdm import tqdm
 import os
@@ -37,7 +39,8 @@ def parse_args():
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
     parser.add_argument('--weight_decay', type=float, default=2e-5)
 
-    parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
+    parser.add_argument('--use_cpu', dest='use_cpu', action='store_true', help='use cpu')
+    parser.set_defaults(use_cpu=False)
     parser.add_argument('--gpu', type=int, default=0, help='gpu')
     parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple gpus', default=True)
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
@@ -55,8 +58,18 @@ def parse_args():
 
     args = parser.parse_args()
     args.task_name = 'classification'
-    if args.use_gpu and args.use_multi_gpu:
+
+    if not args.use_cpu and not torch.cuda.is_available():
+        print("Warning: CUDA is not available, switching to CPU.")
+        args.use_cpu = True
+
+    if args.use_multi_gpu and args.use_cpu:
+        print("Warning: Cannot use multiple GPUs when use_cpu is set. Disabling multi-GPU.")
+        args.use_multi_gpu = False
+
+    if not args.use_cpu and args.use_multi_gpu:
         args.devices = args.devices.replace(' ', '')
+
         device_ids = args.devices.split(',')
         args.device_ids = [int(id_) for id_ in device_ids]
         args.gpu = args.device_ids[0]
@@ -80,6 +93,16 @@ def get_trainingloader(data, label, batch_size=128):
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
     return dataloader
+
+
+def hint_similar_files(target_path, pattern):
+    similar_files = glob.glob(pattern)
+    if similar_files:
+        print(f"Similar files found for {target_path}:")
+        for file in similar_files:
+            print(f"  - {file}")
+    else:
+        print(f"No similar files found for pattern: {pattern}")
 
 
 def main():
@@ -150,14 +173,22 @@ def main():
 
         return avg_event_score.f1
     
+    def _value_to_device(value):
+        if not args.use_cpu:
+            return (f'cuda:{args.device_ids[0]}')
+        else:
+            return value.to('cpu')
+        
+    
     args = parse_args()
     
     # Determine dataset format and load accordingly
     if args.use_chunked:
         # Use chunked dataset format
-        metadata_path = Path(f'{args.data_dir}/chunks/full_train_{args.alpha}_{args.beta}_{args.window_size}_metadata.json')
+        metadata_path = Path(f'{args.data_dir}/chunked/full_train_{args.alpha}_{args.beta}_{args.window_size}_metadata.json'.replace("//", "/"))
         
         if not metadata_path.exists():
+            hint_similar_files(metadata_path, str(metadata_path).replace(f"{args.alpha}_{args.beta}_{args.window_size}", "*"))
             raise FileNotFoundError(
                 f"Chunked dataset not found: {metadata_path}\n"
                 f"Please run get_dataset_chunked.py first to create the chunked dataset."
@@ -208,8 +239,12 @@ def main():
         num_heads=args.num_heads,
     )
     
-    # model = nn.DataParallel(model, device_ids=args.device_ids)
-    model = model.to(f'cuda:{args.device_ids[0]}')
+    if args.use_multi_gpu:
+        print(f"Using multiple GPUs: {args.device_ids}")
+        model = nn.DataParallel(model, device_ids=args.device_ids)
+    else:
+        model = _value_to_device(model)
+    
 
     loss_fn = nn.functional.binary_cross_entropy
     optimizer = torch.optim.RAdam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -230,8 +265,8 @@ def main():
             
             # print('X', X.shape)
             # print('y_detect', y_detect.shape)
-            X = X.to(f'cuda:{args.device_ids[0]}')
-            y_detect = y_detect.to(f'cuda:{args.device_ids[0]}')
+            X = _value_to_device(X)
+            y_detect = _value_to_device(y_detect)
             
             output = model(X)
             # print('detect', output[0].shape)
@@ -246,7 +281,7 @@ def main():
         # current_lr = optimizer.param_groups[0]['lr']
         # print(f"Learning rate after epoch {epoch}: {current_lr:.6f}")
         print('-'*5, 'eval', '-' * 5)
-        event_f1 = eval_TestSet(args, device=f'cuda:{args.device_ids[0]}')
+        event_f1 = eval_TestSet(args, device=_value_to_device(None))
         if event_f1 > best_f1:
             best_f1 = event_f1
             print('store best model with f1: ', best_f1)
